@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import * as P5 from 'p5'
-import { fabric as F } from "fabric";
 
 @Component({
   selector: 'app-studio',
@@ -15,66 +14,30 @@ export class StudioPage implements OnInit {
   }
 
   ionViewDidEnter() {
-    const [rows, columns] = [100, 100]
+    const [rows, columns] = [50, 50]
     const div = document.getElementById('canvas')
-    const fabric = new F.Canvas('canvas');
-
-    const canvas = new Canvas(1000, 1000)
+    const canvas = new Canvas(500, 500)
     const painting = new Painting(rows, columns)
     const sketcher = new Sketcher(canvas, painting)
+    const sketch = (s : P5) => {
+      s.preload = () => {}
+      s.setup = () => { 
+        canvas.create(s)
+      }
+      s.draw = () => {
+        s.background(0)
+        sketcher.update(s)
+        sketcher.sketch(s)
+      };
+    }
 
-    var rect = new F.Rect({
-      left: 100,
-      top: 100,
-      fill: 'red',
-      width: 20,
-      height: 20,
-      hasControls: false,
-      hasBorders: false,
-      lockMovementX: true,
-      lockMovementY: true,
-    });
-
-    fabric.add(rect)
-
-    setTimeout(() => { 
-      rect.set({fill: 'white'})
-      fabric.renderAll()
-      console.log('white time')
-    }, 2000)
+    // const div = document.getElementById('canvas')
+    let c = new P5(sketch, div);
   }
-    // sketcher.sketch(fabric)
-
-  //   const sketch = (s : P5) => {
-  //     s.preload = () => {}
-  //     s.setup = () => canvas.create(s)
-  //     s.draw = () => {
-  //       sketcher.update(s)
-  //       sketcher.sketch(s)
-  //     };
-  //   }
-
-  //   // const div = document.getElementById('canvas')
-  //   let c = new P5(sketch, div);
-  // }
 
 }
 
 const BackgroundColor: [number ,number ,number] = [0,0,0]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -92,7 +55,6 @@ export class Sketcher {
       { width: this.canvas.width, height: this.canvas.height },
       { width: this.painting.columns, height: this.painting.rows }
     )
-    console.log('projection', this.projection)
     this.vertexSketchers = {}
     Object.entries(this.painting.vertices).forEach(
       ([k, v]) => this.vertexSketchers[k] = new VertexSketcher(this.projection, v)
@@ -113,14 +75,17 @@ export class Sketcher {
     }
   }
 
-  sketch(f: F.Canvas) {
-    Object.values(this.vertexSketchers).forEach(vs => vs.sketch(f))
-    if(this.closestVertexToMouse) this.closestVertexToMouse.sketchHover(f)
+  sketch(s: P5) {
+    Object.values(this.vertexSketchers).forEach(vs => vs.sketch(s))
+    if(this.closestVertexToMouse) this.closestVertexToMouse.sketchHover(s)
   }
 }
 
 export class Canvas {
-  constructor (public readonly width: number, public readonly height: number) {}
+  constructor (
+    public readonly width: number,
+    public readonly height: number,
+  ) {}
 
   create(s: P5){
     s.createCanvas(this.width, this.height)
@@ -158,8 +123,8 @@ export class VertexSketcher {
   static StateAttributes(state: Vertex['state'] | 'hover'): { radius: number, color: Color }{
     switch(state){
       case 'active': return { radius: 2, color: [255, 0, 0] }
-      case 'inactive': return { radius: 1, color: [255, 255, 255] }
-      case 'hover': return { radius: 3, color: [0, 255, 0] }
+      case 'inactive': return { radius: 2, color: [255, 255, 255] }
+      case 'hover': return { radius: 10, color: [0, 255, 0] }
     }
   }
 
@@ -171,21 +136,20 @@ export class VertexSketcher {
     this.sketchAtY = sketchAtY
   }
 
-  sketch(f: F.Canvas) {
-    
-    // s.fill(...BackgroundColor)
-    // const { radius, color } = VertexSketcher.StateAttributes(this.v.state)
-    // s.fill(...color)
-    // s.circle(this.sketchAtX, this.sketchAtY, radius)
-    // s.fill(...BackgroundColor)
+  sketch(s: P5) {
+    s.fill(...BackgroundColor)
+    const { radius, color } = VertexSketcher.StateAttributes(this.v.state)
+    s.fill(...color)
+    s.circle(this.sketchAtX, this.sketchAtY, radius)
+    s.fill(...BackgroundColor)
   }
 
-  sketchHover(f: F.Canvas) {
-    // s.fill(...BackgroundColor)
-    // const { radius, color } = VertexSketcher.StateAttributes('hover')
-    // s.fill(...color)
-    // s.circle(this.sketchAtX, this.sketchAtY, radius)
-    // s.fill(...BackgroundColor)
+  sketchHover(s: P5) {
+    s.fill(...BackgroundColor)
+    const { radius, color } = VertexSketcher.StateAttributes('hover')
+    s.fill(...color)
+    s.circle(this.sketchAtX, this.sketchAtY, radius)
+    s.fill(...BackgroundColor)
   }
 }
 
