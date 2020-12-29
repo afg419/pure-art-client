@@ -66,7 +66,7 @@ export class Sketcher {
   }
 
   listen(s: P5, c: P5.Renderer) {
-    c.mouseMoved(() => s.redraw())
+    c.mouseMoved(() => { if(!this.draggingFromKey) s.redraw() })
 
     s.mousePressed = e => {
       const [x, y] = this.projection.map(s.mouseX, s.mouseY)
@@ -85,6 +85,8 @@ export class Sketcher {
       this.painting.activate(closestKey)
       s.redraw()
     }
+
+    s.mouseDragged = () => s.redraw()
 
     s.mouseClicked = e => {
     }
