@@ -4,10 +4,19 @@ import * as P5 from 'p5'
 export class Sketcher {
   // painting coordinates of the mouse, represents the closest vertex to the mouse.
   closestVertexToMouse: VertexSketcher
+  // translates to and from from the pixel plane to the vertex plane
   projection: CoordinateProjection
+  // These know how to sketch vertices, one per vertex
   vertexSketchers: { [key: string]: VertexSketcher } = {}
+  inactiveVertexSketchers: { [key: string]: VertexSketcher } = { }
+
+  // These know how to sketch edges, one per edge
   edgeSketchers: { [key: string]: EdgeSketcher } = {}
-  draggingFromKey: string | undefined //
+
+  draggingFrom: {
+    key: string,
+    paintingCoordinate: [number ,number]
+  }
 
   constructor(
     private readonly canvas: Canvas,
@@ -17,56 +26,66 @@ export class Sketcher {
       { width: this.canvas.width, height: this.canvas.height },
       { width: this.painting.columns, height: this.painting.rows }
     )
-    Object.entries(this.painting.vertices).forEach(
-      ([k, v]) => this.vertexSketchers[k] = new VertexSketcher(this.projection, v)
-    )
+
+    const [xDim, yDim] = this.painting.dimensions
+    for(let x = 0; x < xDim; x ++){
+      for(let y = 0; y < yDim; y ++){
+        this.inactiveVertexSketchers[vertexKey(x,y)] = new VertexSketcher(this.projection, new Vertex(x,y))
+      }
+    }
+
+    this.painting.newVertex$().subscribe(v => {
+      this.vertexSketchers[v.key] = new VertexSketcher(this.projection, v)
+    })
+
+    this.painting.newEdge$().subscribe(e => {
+      this.edgeSketchers[e.key] = new EdgeSketcher(this.projection, e)
+    })
   }
 
   listen(s: P5, c: P5.Renderer) {
-    c.mouseMoved(() => { if(!this.draggingFromKey) s.redraw() })
+    c.mouseMoved(() => { if(!this.draggingFrom) s.redraw() })
 
-    s.mousePressed = e => {
+    s.mousePressed = (e => {
       const [x, y] = this.projection.map(s.mouseX, s.mouseY)
-      this.draggingFromKey = vertexKey(x, y)
+      this.draggingFrom = { key: vertexKey(x, y), paintingCoordinate: [x, y] }
       s.redraw()
-    }
+    })
 
-    s.mouseReleased = e => {
-      const closestKey = this.closestVertexKey(s)
-      if(this.draggingFromKey) {
-        this.painting.activate(this.draggingFromKey)
-        const edge = this.painting.newEdge(this.draggingFromKey, closestKey)
-        this.edgeSketchers[edge.key] = new EdgeSketcher(this.projection, edge)
+    s.mouseReleased = (e => {
+      const closest = this.closestInactiveVertexKey(s)
+      if(this.draggingFrom) {
+        this.painting.newEdge(this.draggingFrom.paintingCoordinate, closest.paintingCoordinate)
       }
-      this.draggingFromKey = undefined
-      this.painting.activate(closestKey)
+      this.draggingFrom = undefined
       s.redraw()
-    }
+    })
 
     s.mouseDragged = () => s.redraw()
+  }
+
+  getInactiveVertexSketcher(key: string): VertexSketcher {
+    return this.inactiveVertexSketchers[key]
   }
 
   getVertexSketcher(key: string): VertexSketcher {
     return this.vertexSketchers[key]
   }
 
-  closestVertexKey(s: P5): string {
+  closestInactiveVertexKey(s: P5): { key: string, paintingCoordinate: [number, number] } {
     const [x, y] = this.projection.map(s.mouseX, s.mouseY)
-    return vertexKey(x,y)
-  }
-
-  closestVertexSketcher(s: P5): VertexSketcher {
-    return this.getVertexSketcher(this.closestVertexKey(s))
+    return { key: vertexKey(x,y), paintingCoordinate: [x, y] }
   }
 
   sketch(s: P5) {
-    const closest = this.closestVertexSketcher(s)
+    const closest = this.getInactiveVertexSketcher(this.closestInactiveVertexKey(s).key)
     if(!closest) return
-    closest.sketchHover(s)
-    Object.values(this.vertexSketchers).forEach(vs => vs.sketch(s))
+    closest.sketch(s, 'hover')
+    Object.values(this.inactiveVertexSketchers).forEach(vs => vs.sketch(s, 'inactive'))
+    Object.values(this.vertexSketchers).forEach(vs => vs.sketch(s, 'active'))
     Object.values(this.edgeSketchers).forEach(es => es.sketch(s))
-    if(this.draggingFromKey){
-      const from = this.getVertexSketcher(this.draggingFromKey)
+    if(this.draggingFrom){
+      const from = this.getInactiveVertexSketcher(this.draggingFrom.key)
       this.hoverEdge(s, from, closest)
     }
   }
@@ -97,10 +116,12 @@ export class Canvas {
 
 type Color = [number, number, number]
 export class VertexSketcher {
-  static StateAttributes(state: Vertex['state'] | 'hover'): { radius: number, color: Color }{
+  perfectApproximation: boolean = false
+  static StateAttributes(state: 'perfect' | 'active' | 'hover' | 'inactive'): { radius: number, color: Color }{
     switch(state){
+      case 'inactive': return { radius: 2, color:  [60,60,60] }
+      case 'perfect': return  { radius: 5, color:  [255, 0, 0] }
       case 'active': return   { radius: 5, color:  [255, 255, 255] }
-      case 'inactive': return { radius: 2, color:  [60, 60 ,60] }
       case 'hover': return    { radius: 10, color: [100, 100, 100] }
     }
   }
@@ -108,22 +129,16 @@ export class VertexSketcher {
   public readonly sketchAtX : number
   public readonly sketchAtY : number
   constructor(private readonly projection: CoordinateProjection, private readonly v: Vertex) {
-    const [sketchAtX, sketchAtY] = this.projection.invmap(this.v.x, this.v.y)
+    this.v.isPerfect$().subscribe(p => this.perfectApproximation = p)
+    const [sketchAtX, sketchAtY] = this.projection.invmap(v.x, v.y)
     this.sketchAtX = sketchAtX
     this.sketchAtY = sketchAtY
   }
 
-  sketch(s: P5) {
+  sketch(s: P5, state: 'active' | 'hover' | 'inactive') {
     s.fill(...BackgroundColor)
-    const { radius, color } = VertexSketcher.StateAttributes(this.v.state)
-    s.fill(...color)
-    s.circle(this.sketchAtX, this.sketchAtY, radius)
-    s.fill(...BackgroundColor)
-  }
-
-  sketchHover(s: P5) {
-    s.fill(...BackgroundColor)
-    const { radius, color } = VertexSketcher.StateAttributes('hover')
+    let finalState = this.perfectApproximation ? 'perfect' as 'perfect' : state
+    const { radius, color } = VertexSketcher.StateAttributes(finalState)
     s.fill(...color)
     s.circle(this.sketchAtX, this.sketchAtY, radius)
     s.fill(...BackgroundColor)

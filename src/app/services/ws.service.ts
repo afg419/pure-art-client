@@ -10,15 +10,21 @@ import { Asset } from "../types";
 export class WsService {
   ws: WebSocketSubject<WsMessage>
   constructor(private readonly config: AppConfig){
-    this.ws = webSocket(`ws://${config.server}`);
+    this.ws = webSocket({
+      url: `ws://${config.server}`,
+      closeObserver: { next: () => console.log('close') },
+      closingObserver: { next: () => console.log('closing') },
+      openObserver: { next: () => console.log('open') },
+    });
     window['ws'] = this.ws
+    window['webSocket'] = () => webSocket({ url: `ws://${config.server}` })
   }
 
   approximate(content: { xpub: string, asset: Asset, dimensions: [number, number], vertex: [number, number] }): Observable<{ derivationPath: string, distanceFromTarget: number }> {
     return this.send(content).pipe(map(m => m.content))
   }
 
-  send(content: WsMessage['content'], topicId: string = uuid()): Observable<WsMessage> {
+  private send(content: WsMessage['content'], topicId: string = uuid()): Observable<WsMessage> {
     const message: WsMessage = {
       topicId,
       msgId: uuid(),
@@ -39,12 +45,11 @@ export class WsService {
     filterBy: (t: WsMessage) => boolean
   }): Observable<WsMessage> {
     const { onSub, onUnsub, filterBy } = args
+
     return this.ws.multiplex(
       onSub, onUnsub, filterBy
     ).pipe(map((m : WsMessage) => {
-      console.log('received reply', m)
       if(m.action === WsMessageAction.EXCEPTION) {
-        console.log('was an exception', m.content)
         throw (m as WsExceptionMessage).content
       }
       return m
@@ -61,7 +66,6 @@ export class WsService {
     }
   }
 }
-
 
 interface WsMessage {
   topicId: string,

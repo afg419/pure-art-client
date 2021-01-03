@@ -1,48 +1,66 @@
-import { Observable } from "rxjs";
-import { concatMap, distinctUntilChanged, filter, first, take, tap } from "rxjs/operators";
+import { Subscription } from "rxjs";
+import { concatMap, filter, map, take, tap } from "rxjs/operators";
 import { WsService } from "src/app/services/ws.service";
 import { Asset } from "src/app/types";
 import { Painting, Vertex } from "./core";
 
 export class PaintingApproximator {
   vertexApproximations: { [key: string]: VertexApproximator } = {}
+  cryptoContext: {
+    asset: Asset,
+    xpub: string,
+  }
 
-  constructor(private readonly ws: WsService, private readonly cc: CryptoContext, private readonly painting: Painting){
-    Object.entries(this.painting.vertices).forEach(
-      ([k, v]) => this.vertexApproximations[k] = new VertexApproximator(this.ws, this.cc, this.painting.dimensions, v)
+  constructor(private readonly ws: WsService, private readonly painting: Painting){
+    this.painting.cryptoContext$().pipe(
+      map(cc => this.cryptoContext = cc),
+      tap(() => this.reApproximateAll()),
+      concatMap(() => this.painting.newVertex$())
     )
+    .subscribe(v => {
+      this.vertexApproximations[v.key] = new VertexApproximator(this.ws, this.cryptoContext, this.painting.dimensions, v)
+    })
+  }
+
+  reApproximateAll() {
+    Object.values(this.vertexApproximations).forEach(va => {
+      va.approximate()
+    })
   }
 }
 
 export class VertexApproximator {
   public bestApproximation: { derivationPath: string, distanceFromTarget: number } | undefined
+  private sub: Subscription
+
 
   constructor(
     private readonly ws: WsService,
-    private readonly cc: CryptoContext,
+    private readonly cc: { asset: Asset, xpub: string },
     private readonly dimensions: [number, number],
     private readonly vertex: Vertex,
   ){
-    this.approximateWhenActive()
+    this.approximate()
   }
 
-  approximateWhenActive() {
+  approximate() {
+    console.log('approximating: ', this.vertex.show())
+    if(this.sub) this.sub.unsubscribe()
+
     const content = {
       xpub: this.cc.xpub,
       asset: this.cc.asset,
       dimensions: this.dimensions,
-      vertex: this.vertex.toJSON()
+      vertex: this.vertex.show()
     }
 
-    this.vertex.watchState$().pipe(
-      filter(s => s === 'active'),
-      tap(() => console.log('approxing!!')),
-      take(1),
-      concatMap(() => this.ws.approximate(content)),
-      tap(r => console.log('approxxing res!', r))
-    ).subscribe({
-      error: e => console.error(`failed to approximate ${this.vertex.toJSON()}: `, e),
-      next: ba => this.bestApproximation = ba
+    this.sub = this.ws.approximate(content).subscribe({
+      error: e => console.error(`failed to approximate ${this.vertex.show()}: `, e),
+      next: ba => {
+        if(ba.distanceFromTarget === 0) this.sub.unsubscribe()
+        this.vertex.nextApproximation(ba)
+      },
+      complete: () => console.log('complete')
     })
   }
 
