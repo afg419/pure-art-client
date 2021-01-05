@@ -25,6 +25,8 @@
     "@ionic/angular": "^5.0.0",
     "@types/fabric": "^4.2.0",
     "@types/p5": "^0.9.1",
+    "bip39": "^3.0.3",
+    "bitcoinjs-lib": "^5.2.0",
     "fabric": "^4.3.0",
     "p5": "^1.2.0",
     "rxjs": "^6.5.5",

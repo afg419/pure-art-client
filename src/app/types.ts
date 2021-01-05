@@ -1,3 +1,4 @@
 export enum Asset {
-  DOGE = "DOGE"
+  BTC = "BTC",
+  LTC = "LTC"
 }

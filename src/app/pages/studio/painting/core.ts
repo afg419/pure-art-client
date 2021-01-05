@@ -14,7 +14,7 @@ export class Painting {
   newEdge$(): Observable<Edge> { return this.$newEdge$.asObservable() }
 
   private cryptoContext = {
-    $asset$: new BehaviorSubject<Asset>(Asset.DOGE),
+    $asset$: new BehaviorSubject<Asset>(Asset.LTC),
     $xpub$: new BehaviorSubject<string>("xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz")
   }
 

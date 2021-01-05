@@ -7,14 +7,15 @@ import { IonicModule } from '@ionic/angular';
 import { WalletPageRoutingModule } from './wallet-routing.module';
 
 import { WalletPage } from './wallet.page';
+import { NewWalletComponent } from 'src/app/components/new-wallet/new-wallet.component';
 
 @NgModule({
   imports: [
     CommonModule,
     FormsModule,
     IonicModule,
-    WalletPageRoutingModule
+    WalletPageRoutingModule,
   ],
-  declarations: [WalletPage]
+  declarations: [WalletPage, NewWalletComponent]
 })
 export class WalletPageModule {}

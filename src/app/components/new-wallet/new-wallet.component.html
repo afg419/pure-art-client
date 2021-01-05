@@ -1,0 +1,44 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      New Wallet
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">
+        <ion-icon name="close-outline">
+
+        </ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content style="margin: 10px">
+  <ion-list>
+    <ion-item-divider></ion-item-divider>
+    <ion-item lines="none">
+      <ion-label>Asset</ion-label>
+      <ion-select [(ngModel)]="asset" value="BTC">
+        <ion-select-option value="BTC">Bitcoin</ion-select-option>
+        <ion-select-option value="LTC">Litecoin</ion-select-option>
+      </ion-select>
+    </ion-item>
+    <ion-item-divider></ion-item-divider>
+    <ion-segment [(ngModel)]="segment">
+      <ion-segment-button value="generate">
+        <ion-label>Generate New Wallet</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="restore">
+        <ion-label>Recover From Seed</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+    <div style="margin: 10px" *ngIf="segment === 'restore'">
+      <ion-label position="floating">Enter Your Recovery Seed</ion-label>
+      <ion-textarea placeholder="word1 word2 word3 ..." rows="6" cols="20"></ion-textarea>
+    </div>
+    <div style="margin: 10px" *ngIf="segment === 'generate'">
+      <ion-textarea [value]="mnemonic" rows="6" cols="20" readonly></ion-textarea>
+      <ion-button>Generate</ion-button>
+    </div>
+  </ion-list>
+</ion-content>

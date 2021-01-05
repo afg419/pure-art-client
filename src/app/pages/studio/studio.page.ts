@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import * as P5 from 'p5'
-import { WsService } from '../services/ws.service';
-import { Asset } from '../types';
+import { WsService } from '../../services/ws.service';
+import { Asset } from '../../types';
 import { PaintingApproximator } from './painting/approximate';
 import { Painting } from './painting/core';
 import { Canvas, Sketcher } from './painting/sketch';

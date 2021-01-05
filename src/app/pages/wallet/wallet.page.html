@@ -1,0 +1,21 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Wallets</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-list>
+    <ion-item lines="none" button (click)="newWallet()">
+      <ion-label>
+        New Wallet
+      </ion-label>
+      <ion-icon color="primary" slot="end" name="add"></ion-icon>
+    </ion-item>
+    <ion-item *ngFor="let wallet of wallets">
+      {{wallet.asset}}
+      {{wallet.amount}}
+      <ion-button>Receive</ion-button>
+    </ion-item>
+  </ion-list>
+</ion-content>
